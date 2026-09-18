@@ -1,1 +1,434 @@
-# hardphotos
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Générateur de Légende Style Snap/Insta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            touch-action: manipulation; /* Évite les zooms accidentels sur mobile */
+        }
+        .canvas-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            background-image: repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+            position: relative;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 65vh;
+            object-fit: contain;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 0.5rem;
+            cursor: grab;
+            touch-action: none; /* Crucial pour le drag sur mobile sans scroller la page */
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        /* Style de scrollbar personnalisé pour les catégories */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row">
+        
+        <!-- Panneau de contrôle (Gauche) -->
+        <div class="w-full lg:w-1/3 bg-gray-50 p-6 border-r border-gray-200 flex flex-col gap-5">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-1">Créateur de Mèmes</h1>
+                <p class="text-sm text-gray-500">Ajoutez votre bulle Snap/Insta et déplacez-la librement.</p>
+            </div>
+
+            <!-- Entrée texte -->
+            <div>
+                <label for="textInput" class="block text-sm font-semibold text-gray-700 mb-2">Votre texte</label>
+                <input type="text" id="textInput" placeholder="Ex: Je confirme" value="Je confirme"
+                    class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors shadow-sm">
+            </div>
+
+            <!-- Catégories et images -->
+            <div class="flex-grow flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm font-semibold text-gray-700">Choisir un modèle</label>
+                </div>
+                
+                <!-- Boutons de catégories -->
+                <div class="flex overflow-x-auto hide-scrollbar gap-2 mb-3 pb-1" id="categoryTabs">
+                    <!-- Généré en JS -->
+                </div>
+
+                <!-- Grille d'images -->
+                <div class="grid grid-cols-3 gap-2 mb-4" id="defaultImagesContainer">
+                    <!-- Généré en JS -->
+                </div>
+
+                <div class="relative flex items-center py-2">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-sm font-medium">OU</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                <!-- Upload d'image -->
+                <div class="mt-2">
+                    <label for="imageUpload" class="flex justify-center items-center px-4 py-3 bg-white text-blue-600 font-medium rounded-lg border-2 border-dashed border-blue-300 cursor-pointer hover:bg-blue-50 transition-colors shadow-sm">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Importer votre image
+                    </label>
+                    <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" class="hidden">
+                </div>
+            </div>
+            
+            <div class="pt-4 border-t border-gray-200 mt-auto">
+                <button id="downloadBtn" class="w-full py-3.5 px-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex justify-center items-center disabled:opacity-50 transform hover:-translate-y-0.5">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Télécharger l'image HD
+                </button>
+            </div>
+        </div>
+
+        <!-- Zone de prévisualisation (Droite) -->
+        <div class="w-full lg:w-2/3 p-6 flex flex-col bg-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-700">Prévisualisation</h2>
+                <span class="text-xs font-medium bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11"></path></svg>
+                    Glissez la bulle pour la déplacer
+                </span>
+            </div>
+            
+            <div class="canvas-container flex-grow h-full min-h-[400px]">
+                <canvas id="memeCanvas"></canvas>
+                
+                <div id="placeholderText" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
+                    <svg class="w-16 h-16 mb-4 opacity-50 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <p class="font-medium">Chargement de l'image...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('memeCanvas');
+        const ctx = canvas.getContext('2d');
+        const textInput = document.getElementById('textInput');
+        const imageUpload = document.getElementById('imageUpload');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const defaultImagesContainer = document.getElementById('defaultImagesContainer');
+        const categoryTabs = document.getElementById('categoryTabs');
+        const placeholderText = document.getElementById('placeholderText');
+
+        let currentImageObj = null;
+        
+        // Base de données d'images par catégories
+        const imageDatabase = {
+            "Mèmes": [
+                'https://picsum.photos/id/870/800/1000', 
+                'https://picsum.photos/id/1025/1000/800', 
+                'https://picsum.photos/id/64/800/800',
+                'https://picsum.photos/id/338/800/1000'
+            ],
+            "Animaux": [
+                'https://picsum.photos/id/237/800/800', // Chien
+                'https://picsum.photos/id/1074/1000/800', // Lion
+                'https://picsum.photos/id/219/800/1000', // Tigre
+                'https://picsum.photos/id/1084/800/800'  // Morse
+            ],
+            "Paysages": [
+                'https://picsum.photos/id/1011/800/1000',
+                'https://picsum.photos/id/1015/1000/800',
+                'https://picsum.photos/id/1036/800/800',
+                'https://picsum.photos/id/1043/1000/800'
+            ]
+        };
+
+        let currentCategory = "Mèmes";
+
+        // Variables pour le glisser-déposer de la bulle
+        let bubblePos = { x: 0, y: 0 }; // Position relative au centre de la bulle, définie lors du chargement de l'image
+        let bubbleHitBox = { x: 0, y: 0, w: 0, h: 0 }; // Zone interactive (mise à jour à chaque tracé)
+        let isDragging = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        function renderCategories() {
+            categoryTabs.innerHTML = '';
+            Object.keys(imageDatabase).forEach(cat => {
+                const btn = document.createElement('button');
+                btn.textContent = cat;
+                const isSelected = cat === currentCategory;
+                btn.className = `whitespace-nowrap px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                    isSelected 
+                    ? 'bg-gray-800 text-white shadow-sm' 
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`;
+                btn.onclick = () => {
+                    currentCategory = cat;
+                    renderCategories();
+                    renderImages();
+                };
+                categoryTabs.appendChild(btn);
+            });
+        }
+
+        function renderImages() {
+            defaultImagesContainer.innerHTML = '';
+            const images = imageDatabase[currentCategory];
+            images.forEach((src, index) => {
+                const imgWrap = document.createElement('div');
+                imgWrap.className = 'aspect-w-1 aspect-h-1 w-full h-24 relative overflow-hidden rounded-lg cursor-pointer border-2 border-transparent hover:border-blue-500 hover:shadow-md transition-all';
+                
+                const imgEl = document.createElement('img');
+                imgEl.src = src;
+                imgEl.className = 'w-full h-full object-cover';
+                
+                imgWrap.onclick = () => loadImageFromUrl(src);
+                imgWrap.appendChild(imgEl);
+                defaultImagesContainer.appendChild(imgWrap);
+            });
+        }
+
+        // Initialisation de l'UI
+        renderCategories();
+        renderImages();
+
+        function loadImageFromUrl(url) {
+            placeholderText.style.display = 'flex';
+            canvas.style.opacity = '0.3';
+            
+            const img = new Image();
+            img.crossOrigin = "anonymous"; 
+            img.onload = () => {
+                currentImageObj = img;
+                placeholderText.style.display = 'none';
+                canvas.style.opacity = '1';
+                
+                // Réinitialiser la position de la bulle (Centrée, en haut)
+                bubblePos = { 
+                    x: img.width / 2, 
+                    y: img.height * 0.25 
+                };
+                
+                drawCanvas();
+            };
+            img.onerror = () => {
+                alert("Erreur lors du chargement de l'image. Veuillez réessayer.");
+                placeholderText.style.display = 'none';
+                canvas.style.opacity = '1';
+            };
+            img.src = url;
+        }
+
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                loadImageFromUrl(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        textInput.addEventListener('input', drawCanvas);
+
+        function drawCanvas() {
+            if (!currentImageObj) return;
+
+            // Définir la taille interne HD du canvas
+            canvas.width = currentImageObj.width;
+            canvas.height = currentImageObj.height;
+
+            // Dessiner l'image de fond
+            ctx.drawImage(currentImageObj, 0, 0);
+
+            const text = textInput.value.trim();
+            if (!text) {
+                bubbleHitBox = { x: 0, y: 0, w: 0, h: 0 }; // Plus de hitbox si pas de texte
+                return;
+            }
+
+            // Style du texte
+            const fontSize = Math.max(canvas.width * 0.05, 24); 
+            ctx.font = `600 ${fontSize}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Mesurer la taille
+            const metrics = ctx.measureText(text);
+            const textWidth = metrics.width;
+            const textHeight = fontSize; 
+            
+            const paddingX = fontSize * 1.5; 
+            const paddingY = fontSize * 0.8;
+
+            const boxWidth = textWidth + paddingX;
+            const boxHeight = textHeight + paddingY;
+            const cornerRadius = boxHeight / 2;
+
+            // Sécurité : Maintenir la bulle dans les limites de l'image
+            bubblePos.x = Math.max(boxWidth / 2, Math.min(canvas.width - boxWidth / 2, bubblePos.x));
+            bubblePos.y = Math.max(boxHeight / 2, Math.min(canvas.height - boxHeight / 2, bubblePos.y));
+
+            const boxX = bubblePos.x - (boxWidth / 2);
+            const boxY = bubblePos.y - (boxHeight / 2);
+
+            // Mettre à jour la HitBox globale pour le drag & drop
+            bubbleHitBox = { x: boxX, y: boxY, w: boxWidth, h: boxHeight };
+
+            // Ombre pour la bulle (optionnel, donne un peu de relief)
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+
+            // Dessiner le fond blanc
+            ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, cornerRadius);
+            } else {
+                ctx.moveTo(boxX + cornerRadius, boxY);
+                ctx.arcTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + boxHeight, cornerRadius);
+                ctx.arcTo(boxX + boxWidth, boxY + boxHeight, boxX, boxY + boxHeight, cornerRadius);
+                ctx.arcTo(boxX, boxY + boxHeight, boxX, boxY, cornerRadius);
+                ctx.arcTo(boxX, boxY, boxX + boxWidth, boxY, cornerRadius);
+            }
+            ctx.fill();
+
+            // Retirer l'ombre pour le texte
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Dessiner le texte
+            ctx.fillStyle = '#000000';
+            ctx.fillText(text, bubblePos.x, bubblePos.y + (fontSize * 0.05));
+        }
+
+        
+        // Convertir les coordonnées écran (souris/tactile) en coordonnées internes du canvas
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Facteur d'échelle entre la taille d'affichage CSS et la résolution interne
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+
+            // Support tactile
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function isPointerInBubble(x, y) {
+            return (
+                x >= bubbleHitBox.x &&
+                x <= bubbleHitBox.x + bubbleHitBox.w &&
+                y >= bubbleHitBox.y &&
+                y <= bubbleHitBox.y + bubbleHitBox.h
+            );
+        }
+
+        function onDragStart(e) {
+            if (!currentImageObj || textInput.value.trim() === '') return;
+            
+            const pos = getCanvasCoordinates(e);
+            
+            if (isPointerInBubble(pos.x, pos.y)) {
+                isDragging = true;
+                // Calculer le décalage entre le clic et le centre de la bulle
+                dragOffsetX = pos.x - bubblePos.x;
+                dragOffsetY = pos.y - bubblePos.y;
+                
+                canvas.style.cursor = 'grabbing';
+                // Empêcher le scroll sur mobile si on touche la bulle
+                if (e.type === 'touchstart' && e.cancelable) {
+                    e.preventDefault(); 
+                }
+            }
+        }
+
+        function onDragMove(e) {
+            if (!isDragging) {
+                // Changer le curseur en hover
+                if (currentImageObj && textInput.value.trim() !== '') {
+                    const pos = getCanvasCoordinates(e);
+                    canvas.style.cursor = isPointerInBubble(pos.x, pos.y) ? 'grab' : 'default';
+                }
+                return;
+            }
+            
+            // Si on drag activement, empêcher le scroll sur mobile
+            if (e.type === 'touchmove' && e.cancelable) {
+                e.preventDefault();
+            }
+
+            const pos = getCanvasCoordinates(e);
+            bubblePos.x = pos.x - dragOffsetX;
+            bubblePos.y = pos.y - dragOffsetY;
+            
+            // On redessine tout à la nouvelle position
+            requestAnimationFrame(drawCanvas); 
+        }
+
+        function onDragEnd() {
+            isDragging = false;
+            canvas.style.cursor = 'default';
+        }
+
+        // Événements Souris
+        canvas.addEventListener('mousedown', onDragStart);
+        canvas.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
+
+        // Événements Tactiles (nécessite {passive: false} pour pouvoir utiliser preventDefault)
+        canvas.addEventListener('touchstart', onDragStart, { passive: false });
+        canvas.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('touchend', onDragEnd);
+
+        downloadBtn.addEventListener('click', () => {
+            if (!currentImageObj) {
+                alert("Veuillez d'abord choisir une image.");
+                return;
+            }
+            
+            const link = document.createElement('a');
+            const timestamp = new Date().getTime();
+            link.download = `meme-${timestamp}.png`;
+            link.href = canvas.toDataURL('image/png', 1.0); // Qualité maximale
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Lancement : Charger la première image de la première catégorie
+        loadImageFromUrl(imageDatabase[currentCategory][0]);
+        
+    </script>
+</body>
+</html>
